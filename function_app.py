@@ -29,25 +29,39 @@ def vector_search(req: func.HttpRequest) -> func.HttpResponse:
     credential = AzureKeyCredential(key)
 
 
+    if "image" in index_name:
+        fields = ["imageUrl","title"]
+    else:
+        fields = ["coverUrl","title","author","content"]
+
+
     # Pure Vector Search    
     search_client = SearchClient(service_endpoint, index_name, credential=credential)
     vector = Vector(value=generate_embeddings(index_dimensions,search_query), k=search_count, fields=index_vector_name)
     results = search_client.search(  
         search_text=None,  
         vectors= [vector],
-        select=["title"],
+        select=fields,
     )  
     response = []
 
     for result in results: 
-        response.append({
-            "title" : result['title'],
-            #"image_url": result["imageUrl"],
-            "score": result['@search.score']
-        })
-        print(f"Title: {result['title']}")  
-       # print(f"Score: {result['imageUrl']}")  
-        print(f"Score: {result['@search.score']}")  
+
+        if "image" in index_name:
+            response_obj = {
+                "title" : result['title'],
+                "image_url": result["imageUrl"],
+                "score": result['@search.score']  
+            }
+        else:
+            response_obj = {
+                "title" : result['title'],
+                "cover_url": result["coverUrl"],
+                "author":result["author"],
+                "content":result["content"],
+                "score": result['@search.score']
+            }
+        response.append(response_obj)
         
     response_body = { "results": response }
     response = func.HttpResponse(json.dumps(response_body))
